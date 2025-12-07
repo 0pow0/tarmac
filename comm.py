@@ -179,7 +179,11 @@ class CommNetMLP(nn.Module):
 
         # Hard Attention - action whether an agent communicates or not
         if self.args.hard_attn:
-            comm_action = torch.tensor(info['comm_action'])
+            comm_action = torch.tensor(info['comm_action'], dtype=torch.float32)
+            prob = getattr(self.args, 'comm_prob', None)
+            if prob is not None:
+                comm_prob = torch.full_like(comm_action, prob)
+                comm_action = torch.bernoulli(comm_prob)  # probability of communicating controlled via args
             comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
             # action 1 is talk, 0 is silent i.e. act as dead for comm purposes.
             agent_mask *= comm_action_mask.double()
@@ -300,4 +304,3 @@ class CommNetMLP(nn.Module):
         # dim 0 = num of layers * num of direction
         return tuple(( torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True),
                        torch.zeros(batch_size * self.nagents, self.hid_size, requires_grad=True)))
-
