@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import visdom
 import data
+import wandb
 from models import *
 from comm import CommNetMLP
 from utils import *
@@ -72,6 +73,8 @@ parser.add_argument('--load', default='', type=str,
                     help='load the model')
 parser.add_argument('--display', action="store_true", default=False,
                     help='Display environment state')
+parser.add_argument('--wandb_run', default=None, type=str,
+                    help='WandB run name')
 
 
 parser.add_argument('--random', action='store_true', default=False,
@@ -113,6 +116,10 @@ parser.add_argument('--share_weights', default=False, action='store_true',
 
 init_args_for_env(parser)
 args = parser.parse_args()
+
+wandb_run = wandb.init(project="tarmac", name=args.wandb_run_name, config=vars(args))
+wandb.config.update(args)  # Add all arguments to config
+
 
 if args.ic3net:
     args.commnet = 1
@@ -247,6 +254,15 @@ def run(num_epochs):
                     vis.line(np.asarray(v.data), np.asarray(log[v.x_axis].data[-len(v.data):]),
                     win=k, opts=dict(xlabel=v.x_axis, ylabel=k))
 
+        if wandb_run is not None:
+            payload = {'epoch': epoch, 'epoch_time': epoch_time}
+            # Only log keys that were computed in this epoch
+            for key in ['reward', 'enemy_reward', 'add_rate', 'success', 'steps_taken',
+                        'comm_action', 'enemy_comm', 'value_loss', 'action_loss', 'entropy']:
+                if key in stat:
+                    payload[key] = stat[key]
+            wandb.log(payload, step=epoch)
+
         if args.save_every and ep and args.save != '' and ep % args.save_every == 0:
             # fname, ext = args.save.split('.')
             # save(fname + '_' + str(ep) + '.' + ext)
@@ -286,6 +302,8 @@ if args.display:
 
 if args.save != '':
     save(args.save)
+
+wandb_run.finish()
 
 if sys.flags.interactive == 0 and args.nthreads > 1:
     trainer.quit()
