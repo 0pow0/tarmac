@@ -117,7 +117,7 @@ parser.add_argument('--share_weights', default=False, action='store_true',
 init_args_for_env(parser)
 args = parser.parse_args()
 
-wandb_run = wandb.init(project="tarmac", name=args.wandb_run_name, config=vars(args))
+wandb_run = wandb.init(project="tarmac", name=args.wandb_run, config=vars(args))
 wandb.config.update(args)  # Add all arguments to config
 
 
