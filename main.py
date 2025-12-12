@@ -2,6 +2,7 @@ import sys
 import time
 import signal
 import argparse
+import os
 
 import numpy as np
 import torch
@@ -272,11 +273,20 @@ def run(num_epochs):
             save(args.save)
 
 def save(path):
+    # If a directory is provided, drop the checkpoint inside it.
+    save_path = path
+    if os.path.isdir(path):
+        save_path = os.path.join(path, 'model.pt')
+    else:
+        dirname = os.path.dirname(path)
+        if dirname and not os.path.exists(dirname):
+            os.makedirs(dirname, exist_ok=True)
+
     d = dict()
     d['policy_net'] = policy_net.state_dict()
     d['log'] = log
     d['trainer'] = trainer.state_dict()
-    torch.save(d, path)
+    torch.save(d, save_path)
 
 def load(path):
     d = torch.load(path)
