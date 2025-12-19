@@ -116,8 +116,23 @@ class CommNetMLP(nn.Module):
             agent_mask = torch.ones(n)
             num_agents_alive = n
 
-        agent_mask = agent_mask.view(1, 1, n)
-        agent_mask = agent_mask.expand(batch_size, n, n).unsqueeze(-1)
+        # agent_mask = agent_mask.view(1, 1, n)
+        # agent_mask = agent_mask.expand(batch_size, n, n).unsqueeze(-1)
+        """
+        [RUI] original agent mask is not correct if not used with 'comm_sum = comm.sum(dim=1)' 
+        Example:
+        agent_mask = [1, 0, 1]
+        ->
+        [1, 0, 1]
+        [1, 0, 1]
+        [1, 0, 1]
+        But we need:
+        [1, 0, 1]
+        [0, 0, 0]
+        [1, 0, 1]
+        """
+        agent_mask = agent_mask.outer(agent_mask)
+        agent_mask = agent_mask.unsqueeze(0).expand(batch_size, -1, -1).unsqueeze(-1)
 
         return num_agents_alive, agent_mask
 
@@ -169,6 +184,8 @@ class CommNetMLP(nn.Module):
         #     x = x.sum(dim=-2)
         #     x = torch.cat([x, maxi], dim=-1)
         #     x = self.tanh(x)
+        print(f"{x.shape=}")
+        exit()
 
         x, hidden_state, cell_state = self.forward_state_encoder(x)
 
@@ -184,7 +201,10 @@ class CommNetMLP(nn.Module):
             if prob is not None:
                 comm_prob = torch.full_like(comm_action, prob)
                 comm_action = torch.bernoulli(comm_prob)  # probability of communicating controlled via args
-            comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
+            # comm_action_mask = comm_action.expand(batch_size, n, n).unsqueeze(-1)
+            # [RUI] Here we need to make sure the agent can't see itself
+            comm_action_mask = comm_action.view(1, 1, n).repeat(batch_size, n, 1)
+            comm_action_mask.diagonal(dim1=-2, dim2=-1).fill_(0).unsqueeze(-1)
             # action 1 is talk, 0 is silent i.e. act as dead for comm purposes.
             agent_mask = agent_mask * comm_action_mask.double()
 
