@@ -184,8 +184,6 @@ class CommNetMLP(nn.Module):
         #     x = x.sum(dim=-2)
         #     x = torch.cat([x, maxi], dim=-1)
         #     x = self.tanh(x)
-        print(f"{x.shape=}")
-        exit()
 
         x, hidden_state, cell_state = self.forward_state_encoder(x)
 

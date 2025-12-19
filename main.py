@@ -256,13 +256,28 @@ def run(num_epochs):
                     win=k, opts=dict(xlabel=v.x_axis, ylabel=k))
 
         if wandb_run is not None:
+            def _vector_mean(value):
+                if torch.is_tensor(value):
+                    if value.numel() > 1:
+                        return value.detach().double().mean().item()
+                elif isinstance(value, (list, tuple, np.ndarray)):
+                    arr = np.asarray(value)
+                    if arr.size > 1:
+                        return float(arr.mean())
+                return None
+
             payload = {'epoch': epoch, 'epoch_time': epoch_time}
             # Only log keys that were computed in this epoch
             for key in ['reward', 'enemy_reward', 'add_rate', 'success', 'steps_taken',
                         'comm_action', 'enemy_comm', 'value_loss', 'action_loss', 'entropy']:
                 if key in stat:
-                    payload[key] = stat[key]
+                    value = stat[key]
+                    payload[key] = value
+                    mean_value = _vector_mean(value)
+                    if mean_value is not None:
+                        payload[f'{key}_mean'] = mean_value
             wandb.log(payload, step=epoch)
+
 
         if args.save_every and ep and args.save != '' and ep % args.save_every == 0:
             # fname, ext = args.save.split('.')
